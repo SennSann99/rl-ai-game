@@ -20,6 +20,8 @@ python3 -m venv .venv
 
 The game opens paused; click **START** when the audience is ready. The agent initially explores randomly (high epsilon), then increasingly chooses actions that earned higher rewards. After `training_episodes`, the game switches to demo mode and pauses so the presenter stays in control.
 
+The window can be resized by dragging its edges or corners. The complete view scales proportionally, and controls remain clickable at every size. The initial window fits the desktop.
+
 ## Controls
 
 | Key | Action |
@@ -96,3 +98,7 @@ Use the top-left mode button before training starts to switch modes. `Space` or 
 `config_quest.json` defines the fixed map, start, castle, hazards, coin positions, monster spawn cells and ranges, rewards, and initial view distances. The adjustable reward rules are `gem_reward`, `coin_reward`, `hazard_penalty`, and `enemy_penalty`.
 
 The dashboard uses the lower-left area for the remaining route distance, visible threats, and reward rules.
+
+### Optional enemies
+
+Before learning starts, use **敵あり／敵なし** under **冒険の設定** in 設定者モード. The selection is fixed during training and playback, and retained when returning to setup. Restarting the app defaults to enemies enabled. Enemy-specific controls are hidden when enemies are disabled. The enemy display-range control only changes the purple overlay; quest monsters always roam randomly and do not use vision to chase.

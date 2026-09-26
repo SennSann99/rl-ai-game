@@ -24,6 +24,7 @@ class CastleQuest(AdvancedTreasureDash):
         self.coin_positions = [tuple(p) for p in config.get("coin_positions", [])][:self.MAX_COINS]
         self.coins: list[Gem] = []
         self.coins_enabled = True
+        self.enemies_enabled = True
         self.discovered_cells: set[Position] = set()
         self.training_started = False
         self.access_mode = "configurer"
@@ -55,7 +56,7 @@ class CastleQuest(AdvancedTreasureDash):
         self.coins = [Gem(position, position) for position in self.coin_positions] if self.coins_enabled else []
         self.coin_respawn_at: dict[Position, int] = {}
         self.hazards = [Hazard(tuple(p)) for p in self.config["hazard_positions"]]
-        positions = self.config.get("enemy_positions", [])
+        positions = self.config.get("enemy_positions", []) if self.enemies_enabled else []
         self.enemies = [Enemy(tuple(p)) for p in positions]
         self.enemy_spawn_positions = tuple(enemy.position for enemy in self.enemies)
         self.discovered_cells.update(self.visible_cells(self.agent_position))
@@ -87,6 +88,15 @@ class CastleQuest(AdvancedTreasureDash):
     def toggle_access_mode(self) -> None:
         if not self.training_started:
             self.access_mode = "player" if self.access_mode == "configurer" else "configurer"
+
+    def toggle_enemies(self) -> bool:
+        """Choose the enemy setting before training and preserve it across episodes."""
+        if self.training_started or self.access_mode != "configurer":
+            return False
+        self.enemies_enabled = not self.enemies_enabled
+        self.reset_episode()
+        self.last_outcome = "敵ありにしました" if self.enemies_enabled else "敵なしにしました"
+        return True
 
     def collect_coins(self) -> bool:
         if self.training_started or self.access_mode != "configurer" or not self.coins_enabled:

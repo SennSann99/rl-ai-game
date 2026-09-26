@@ -9,10 +9,10 @@ from .ui import GameUI, PANEL_WIDTH
 
 
 class QuestUI(GameUI):
+    minimum_height = 1250
+
     def __init__(self, config: dict):
         super().__init__(config)
-        self.height = max(self.height, 1250)
-        self.screen = pygame.display.set_mode((self.arena_width + PANEL_WIDTH, self.height))
         pygame.display.set_caption("AI勇者のキャッスルクエスト — 安全な道を学ぼう")
 
     def draw(self, game, paused: bool, speed: float) -> None:
@@ -148,13 +148,18 @@ class QuestUI(GameUI):
         self.screen.blit(self.font.render("冒険の設定", True, theme["text"]), (left, y))
         y += 33
         y = self._parameter("speed_down", "speed_up", "再生・学習の速さ", f"毎秒 {speed:g} 歩", left, y, width, theme)
+        enemy_label = "敵あり" if game.enemies_enabled else "敵なし"
         if game.access_mode == "configurer" and not game.training_started:
-            y = self._parameter("enemy_slower", "enemy_faster", "モンスターの速さ",
-                                f"{game.config['enemy_speed']} 歩ごと", left, y, width, theme)
+            self._button("toggle_enemies", f"{enemy_label}（クリックで切替）", left, y, width, theme)
+            y += 48
+            if game.enemies_enabled:
+                y = self._parameter("enemy_slower", "enemy_faster", "モンスターの速さ",
+                                    f"{game.config['enemy_speed']} 歩ごと", left, y, width, theme)
             y = self._parameter("hero_vision_down", "hero_vision_up", "勇者の視野",
                                 f"{game.config['agent_vision_range']} マス", left, y, width, theme)
-            y = self._parameter("monster_vision_down", "monster_vision_up", "モンスターの視野",
-                                f"{game.config['monster_vision_range']} マス", left, y, width, theme)
+            if game.enemies_enabled:
+                y = self._parameter("monster_vision_down", "monster_vision_up", "敵の表示範囲（行動に影響なし）",
+                                    f"{game.config['monster_vision_range']} マス", left, y, width, theme)
             y = self._parameter("coin_respawn_down", "coin_respawn_up", "コイン復活まで",
                                 f"{game.config['coin_respawn_steps']} 歩", left, y, width, theme)
             self.screen.blit(self.font.render("報酬ルール", True, theme["text"]), (left, y))
@@ -165,14 +170,15 @@ class QuestUI(GameUI):
                                 f"{game.config['coin_reward']:.0f}", left, y, width, theme)
             y = self._parameter("hazard_penalty_down", "hazard_penalty_up", "危険マスの報酬",
                                 f"{game.config['hazard_penalty']:.0f}", left, y, width, theme)
-            y = self._parameter("enemy_penalty_down", "enemy_penalty_up", "捕獲時の報酬",
-                                f"{game.config['enemy_penalty']:.0f}", left, y, width, theme)
+            if game.enemies_enabled:
+                y = self._parameter("enemy_penalty_down", "enemy_penalty_up", "捕獲時の報酬",
+                                    f"{game.config['enemy_penalty']:.0f}", left, y, width, theme)
         else:
             message = ("体験者モード：パラメータは固定です" if game.access_mode == "player"
                        else "学習開始後はパラメータを固定します")
             self.screen.blit(self.small.render(message, True, theme["text"]), (left, y))
             y += 24
-            self.screen.blit(self.small.render(f"勇者の視野 {game.config['agent_vision_range']}マス　モンスター {game.config['monster_vision_range']}マス", True, theme["text"]), (left, y))
+            self.screen.blit(self.small.render(f"{enemy_label}　勇者の視野 {game.config['agent_vision_range']}マス", True, theme["text"]), (left, y))
             y += 24
 
         self.screen.blit(self.font.render("学習の記録", True, theme["text"]), (left, y))

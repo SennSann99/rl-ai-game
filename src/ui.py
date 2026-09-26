@@ -12,13 +12,20 @@ MIN_HEIGHT = 820
 
 
 class GameUI:
+    minimum_height = MIN_HEIGHT
+
     def __init__(self, config: dict):
         self.config = config
         self.cell = config["cell_size"]
         self.arena_width = config["grid_width"] * self.cell
         self.arena_height = config["grid_height"] * self.cell
-        self.height = max(self.arena_height, MIN_HEIGHT)
-        self.screen = pygame.display.set_mode((self.arena_width + PANEL_WIDTH, self.height))
+        self.height = max(self.arena_height, self.minimum_height)
+        self.screen = pygame.Surface((self.arena_width + PANEL_WIDTH, self.height))
+        desktop_width, desktop_height = pygame.display.get_desktop_sizes()[0]
+        scale = min(1.0, desktop_width * 0.9 / self.screen.get_width(),
+                    desktop_height * 0.85 / self.height)
+        window_size = tuple(max(1, int(value * scale)) for value in self.screen.get_size())
+        self.window = pygame.display.set_mode(window_size, pygame.RESIZABLE)
         pygame.display.set_caption("AIトレジャーダッシュ — AIの学習を見てみよう！")
         bundled_candidates = [
             Path("/System/Library/Fonts/Hiragino Sans GB.ttc"),
@@ -82,10 +89,32 @@ class GameUI:
             self._draw_fog_of_war(game)
         self._draw_arena_legend(theme)
         self._draw_panel(game, paused, speed, theme)
+        viewport = self._viewport()
+        self.window.fill((30, 33, 40))
+        pygame.transform.smoothscale(self.screen, viewport.size,
+                                    self.window.subsurface(viewport))
         pygame.display.flip()
+
+    def _viewport(self) -> pygame.Rect:
+        """Fit the complete logical canvas inside the current window."""
+        width, height = self.window.get_size()
+        scale = min(width / self.screen.get_width(), height / self.height)
+        size = (max(1, int(self.screen.get_width() * scale)),
+                max(1, int(self.height * scale)))
+        return pygame.Rect((width - size[0]) // 2, (height - size[1]) // 2, *size)
+
+    def canvas_position(self, position: tuple[int, int]) -> tuple[int, int] | None:
+        viewport = self._viewport()
+        if not viewport.collidepoint(position):
+            return None
+        return ((position[0] - viewport.x) * self.screen.get_width() // viewport.width,
+                (position[1] - viewport.y) * self.height // viewport.height)
 
     def action_at(self, position: tuple[int, int]) -> str | None:
         """Return the action for a clicked control, if any."""
+        position = self.canvas_position(position)
+        if position is None:
+            return None
         for action, rect in self.buttons.items():
             if rect.collidepoint(position):
                 return action

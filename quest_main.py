@@ -44,6 +44,7 @@ def main() -> int:
                         simulation_speed = min(60.0, simulation_speed + 1.0)
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     action = ui.action_at(event.pos)
+                    canvas_pos = ui.canvas_position(event.pos)
                     if action == "pause":
                         if not game.training_started:
                             game.begin_training()
@@ -54,6 +55,8 @@ def main() -> int:
                         game.return_to_setup(); paused = True; step_budget = 0.0
                     elif action == "role":
                         game.toggle_access_mode()
+                    elif action == "toggle_enemies":
+                        game.toggle_enemies()
                     elif action == "collect_coins":
                         game.collect_coins()
                     elif action == "revive_coins":
@@ -78,8 +81,8 @@ def main() -> int:
                         elif action == "hazard_penalty_up": game.config["hazard_penalty"] = min(0, game.config["hazard_penalty"] + 1)
                         elif action == "enemy_penalty_down": game.config["enemy_penalty"] -= 5
                         elif action == "enemy_penalty_up": game.config["enemy_penalty"] = min(0, game.config["enemy_penalty"] + 5)
-                    elif action is None and event.pos[0] < ui.arena_width and event.pos[1] < ui.arena_height:
-                        game.place_or_remove_coin((event.pos[0] // ui.cell, event.pos[1] // ui.cell))
+                    elif action is None and canvas_pos is not None and canvas_pos[0] < ui.arena_width and canvas_pos[1] < ui.arena_height:
+                        game.place_or_remove_coin((canvas_pos[0] // ui.cell, canvas_pos[1] // ui.cell))
 
             if not paused:
                 step_budget += elapsed * simulation_speed
