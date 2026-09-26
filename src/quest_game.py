@@ -14,6 +14,7 @@ class CastleQuest(AdvancedTreasureDash):
     TRAINING_EPISODES = 100
     FIXED_STEP_LIMIT = 100
     MAX_COINS = 7
+    MONSTER_ROAM_RADIUS = 5
     COIN_RESPAWN_STEPS = 4
 
     def __init__(self, config: dict):
@@ -57,6 +58,7 @@ class CastleQuest(AdvancedTreasureDash):
         self.hazards = [Hazard(tuple(p)) for p in self.config["hazard_positions"]]
         positions = self.config.get("enemy_positions", [])
         self.enemies = [Enemy(tuple(p)) for p in positions]
+        self.enemy_spawn_positions = tuple(enemy.position for enemy in self.enemies)
         self.discovered_cells.update(self.visible_cells(self.agent_position))
 
     def begin_training(self) -> None:
@@ -178,13 +180,17 @@ class CastleQuest(AdvancedTreasureDash):
 
     def _move_enemies(self) -> None:
         for index, enemy in enumerate(self.enemies):
-            region = self.monster_regions[index] if index < len(self.monster_regions) else (0, 0, self.width, self.height)
-            if self.monster_can_see(enemy, self.agent_position):
-                enemy.last_seen = self.agent_position; enemy.alerted = True
-            if enemy.last_seen is not None:
-                enemy.position = self._region_path_step(enemy.position, enemy.last_seen, region)
-            else:
-                enemy.position = self._region_random_neighbor(enemy.position, region)
+            origin = self.enemy_spawn_positions[index]
+            candidates = []
+            for dx, dy in self.agent.ACTIONS:
+                point = (enemy.position[0] + dx, enemy.position[1] + dy)
+                if (0 <= point[0] < self.width and 0 <= point[1] < self.height
+                        and point not in self.walls
+                        and abs(point[0] - origin[0]) + abs(point[1] - origin[1]) <= self.MONSTER_ROAM_RADIUS):
+                    candidates.append(point)
+            enemy.position = self.rng.choice(candidates) if candidates else enemy.position
+            enemy.last_seen = None
+            enemy.alerted = False
 
     def _region_path_step(self, start: Position, target: Position, region: tuple[int, int, int, int]) -> Position:
         queue = deque([start]); parent: dict[Position, Position | None] = {start: None}
