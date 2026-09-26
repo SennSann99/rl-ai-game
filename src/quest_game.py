@@ -14,6 +14,7 @@ class CastleQuest(AdvancedTreasureDash):
     TRAINING_EPISODES = 100
     FIXED_STEP_LIMIT = 100
     MAX_COINS = 7
+    COIN_RESPAWN_STEPS = 4
 
     def __init__(self, config: dict):
         self.successes = 0
@@ -52,6 +53,7 @@ class CastleQuest(AdvancedTreasureDash):
         self.last_reward = 0.0
         self.gems = [Gem(tuple(self.config["reward_positions"][0]), tuple(self.config["reward_positions"][0]))]
         self.coins = [Gem(position, position) for position in self.coin_positions] if self.coins_enabled else []
+        self.coin_respawn_at: dict[Position, int] = {}
         self.hazards = [Hazard(tuple(p)) for p in self.config["hazard_positions"]]
         positions = self.config.get("enemy_positions", [])
         self.enemies = [Enemy(tuple(p)) for p in positions]
@@ -89,6 +91,7 @@ class CastleQuest(AdvancedTreasureDash):
         if self.training_started or self.access_mode != "configurer" or not self.coins_enabled:
             return False
         self.coins_enabled = False; self.coins.clear(); self.last_outcome = "コインを回収しました"
+        self.coin_respawn_at.clear()
         return True
 
     def revive_coins(self) -> bool:
@@ -142,6 +145,12 @@ class CastleQuest(AdvancedTreasureDash):
         if candidate not in self.walls:
             self.agent_position = candidate
         self.steps += 1
+        # Each collected coin returns after four subsequent action steps.
+        for position, due_step in list(self.coin_respawn_at.items()):
+            if self.steps >= due_step:
+                if self.coins_enabled and position in self.coin_positions:
+                    self.coins.append(Gem(position, position))
+                del self.coin_respawn_at[position]
         if self.steps % self.config["enemy_speed"] == 0:
             self._move_enemies()
         self.discovered_cells.update(self.visible_cells(self.agent_position))
@@ -149,6 +158,7 @@ class CastleQuest(AdvancedTreasureDash):
         reward = self.config["step_penalty"] + self.config["progress_reward"] * (old_distance - new_distance)
         for coin in [coin for coin in self.coins if coin.position == self.agent_position]:
             self.coins.remove(coin); reward += self.config["coin_reward"]
+            self.coin_respawn_at[coin.position] = self.steps + self.COIN_RESPAWN_STEPS
         if any(h.position == self.agent_position for h in self.hazards): reward += self.config["hazard_penalty"]
         reached = self.agent_position == self.goal_position
         caught = any(enemy.position == self.agent_position for enemy in self.enemies)
