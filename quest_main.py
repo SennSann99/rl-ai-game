@@ -29,29 +29,63 @@ def main() -> int:
                     if event.key == pygame.K_ESCAPE:
                         running = False
                     elif event.key == pygame.K_SPACE:
-                        paused = not paused
+                        if not game.training_started:
+                            game.begin_training()
+                            paused = False
+                        else:
+                            paused = not paused
                     elif event.key == pygame.K_r:
-                        game.reset_training(); paused = True; step_budget = 0.0
+                        game.return_to_setup(); paused = True; step_budget = 0.0
                     elif event.key == pygame.K_m:
-                        game.toggle_mode(); paused = True; step_budget = 0.0
+                        game.toggle_access_mode()
                     elif event.key == pygame.K_LEFTBRACKET:
                         simulation_speed = max(1.0, simulation_speed - 1.0)
                     elif event.key == pygame.K_RIGHTBRACKET:
                         simulation_speed = min(60.0, simulation_speed + 1.0)
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     action = ui.action_at(event.pos)
-                    if action == "pause": paused = not paused
-                    elif action == "reset": game.reset_training(); paused = True; step_budget = 0.0
-                    elif action == "mode": game.toggle_mode(); paused = True; step_budget = 0.0
-                    elif action == "speed_down": simulation_speed = max(1.0, simulation_speed - 1.0)
-                    elif action == "speed_up": simulation_speed = min(60.0, simulation_speed + 1.0)
-                    elif action == "enemy_slower": game.config["enemy_speed"] = min(30, game.config["enemy_speed"] + 1)
-                    elif action == "enemy_faster": game.config["enemy_speed"] = max(1, game.config["enemy_speed"] - 1)
+                    if action == "pause":
+                        if not game.training_started:
+                            game.begin_training()
+                            paused = False
+                        else:
+                            paused = not paused
+                    elif action == "reset":
+                        game.return_to_setup(); paused = True; step_budget = 0.0
+                    elif action == "role":
+                        game.toggle_access_mode()
+                    elif action == "collect_coins":
+                        game.collect_coins()
+                    elif action == "revive_coins":
+                        game.revive_coins()
+                    elif action in {"speed_down", "speed_up"}:
+                        if action == "speed_down": simulation_speed = max(1.0, simulation_speed - 1.0)
+                        else: simulation_speed = min(60.0, simulation_speed + 1.0)
+                    elif action and game.access_mode == "configurer" and not game.training_started:
+                        if action == "enemy_slower": game.config["enemy_speed"] = min(30, game.config["enemy_speed"] + 1)
+                        elif action == "enemy_faster": game.config["enemy_speed"] = max(1, game.config["enemy_speed"] - 1)
+                        elif action == "hero_vision_down": game.config["agent_vision_range"] = max(1, game.config["agent_vision_range"] - 1)
+                        elif action == "hero_vision_up": game.config["agent_vision_range"] = min(10, game.config["agent_vision_range"] + 1)
+                        elif action == "monster_vision_down": game.config["monster_vision_range"] = max(1, game.config["monster_vision_range"] - 1)
+                        elif action == "monster_vision_up": game.config["monster_vision_range"] = min(10, game.config["monster_vision_range"] + 1)
+                        elif action == "castle_reward_down": game.config["gem_reward"] = max(0, game.config["gem_reward"] - 5)
+                        elif action == "castle_reward_up": game.config["gem_reward"] += 5
+                        elif action == "coin_reward_down": game.config["coin_reward"] = max(0, game.config["coin_reward"] - 1)
+                        elif action == "coin_reward_up": game.config["coin_reward"] += 1
+                        elif action == "hazard_penalty_down": game.config["hazard_penalty"] -= 1
+                        elif action == "hazard_penalty_up": game.config["hazard_penalty"] = min(0, game.config["hazard_penalty"] + 1)
+                        elif action == "enemy_penalty_down": game.config["enemy_penalty"] -= 5
+                        elif action == "enemy_penalty_up": game.config["enemy_penalty"] = min(0, game.config["enemy_penalty"] + 5)
+                    elif action is None and event.pos[0] < ui.arena_width and event.pos[1] < ui.arena_height:
+                        game.place_or_remove_coin((event.pos[0] // ui.cell, event.pos[1] // ui.cell))
 
             if not paused:
                 step_budget += elapsed * simulation_speed
-                if game.episode >= config["training_episodes"] and game.mode == "training":
-                    game.toggle_mode(); paused = True; step_budget = 0.0
+                if game.episode >= game.TRAINING_EPISODES and game.mode == "training":
+                    game.mode = "demo"
+                    game.reset_episode()
+                    paused = True
+                    step_budget = 0.0
                 updates = min(int(step_budget), 10)
                 step_budget -= updates
                 for _ in range(updates):

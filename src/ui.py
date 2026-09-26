@@ -63,6 +63,8 @@ class GameUI:
             pygame.draw.polygon(self.screen, theme["reward"], points)
             pygame.draw.polygon(self.screen, (255, 245, 190), points, 3)
             pygame.draw.circle(self.screen, (255, 255, 238), (cx - 5, cy - 7), 4)
+        for coin in getattr(game, "coins", []):
+            self._draw_coin(coin.position, theme)
         for enemy in game.enemies:
             cx, cy = self._center(enemy.position)
             pygame.draw.circle(self.screen, (206, 193, 225), (cx + 3, cy + 4), self.cell // 3)
@@ -76,6 +78,8 @@ class GameUI:
                 pygame.draw.circle(self.screen, theme["hazard"], (cx, cy), self.cell // 2 - 3, 3)
                 self.screen.blit(self.button_font.render("!", True, theme["hazard"]), (cx + 20, cy - 29))
         self._draw_agent(game.agent_position, theme["agent"])
+        if hasattr(game, "discovered_cells") and getattr(game, "access_mode", "player") == "player":
+            self._draw_fog_of_war(game)
         self._draw_arena_legend(theme)
         self._draw_panel(game, paused, speed, theme)
         pygame.display.flip()
@@ -96,6 +100,15 @@ class GameUI:
             pygame.draw.line(self.screen, theme["grid"], (x, 0), (x, self.arena_height))
         for y in range(0, self.arena_height + 1, self.cell):
             pygame.draw.line(self.screen, theme["grid"], (0, y), (self.arena_width, y))
+
+    def _draw_fog_of_war(self, game) -> None:
+        """Hide all objects and terrain outside the hero's remembered field of view."""
+        for y in range(game.height):
+            for x in range(game.width):
+                if (x, y) not in game.discovered_cells:
+                    rect = self._cell_rect((x, y))
+                    pygame.draw.rect(self.screen, (52, 59, 71), rect)
+                    pygame.draw.rect(self.screen, (72, 81, 96), rect, 1)
 
     def _draw_vision(self, game, theme: dict) -> None:
         overlay = pygame.Surface((self.arena_width, self.arena_height), pygame.SRCALPHA)
@@ -160,6 +173,15 @@ class GameUI:
         pygame.draw.rect(self.screen, light, (cx - 5, cy + 3, 10, 17), border_radius=5)
         pygame.draw.line(self.screen, stone, (cx, cy - 35), (cx, cy - 45), 2)
         pygame.draw.polygon(self.screen, theme["hazard"], [(cx, cy - 45), (cx + 12, cy - 41), (cx, cy - 37)])
+
+    def _draw_coin(self, position, theme: dict) -> None:
+        cx, cy = self._center(position)
+        pygame.draw.circle(self.screen, (173, 133, 53), (cx + 2, cy + 3), 13)
+        pygame.draw.circle(self.screen, theme["reward"], (cx, cy), 13)
+        pygame.draw.circle(self.screen, (255, 240, 180), (cx - 3, cy - 4), 5)
+        pygame.draw.circle(self.screen, (173, 133, 53), (cx, cy), 8, 2)
+        self.screen.blit(self.small.render("C", True, (126, 91, 35)),
+                         self.small.render("C", True, (126, 91, 35)).get_rect(center=(cx, cy)))
 
     def _draw_panel(self, game, paused: bool, speed: float, theme: dict) -> None:
         x = self.arena_width

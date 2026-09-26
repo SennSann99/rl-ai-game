@@ -20,10 +20,13 @@ DEFAULTS: dict[str, Any] = {
     "monster_vision_range": 3,
     "wall_positions": [],
     "enemy_positions": [],
+    "coin_positions": [],
+    "monster_regions": [],
     "start_position": None,
     "reward_positions": [[2, 1], [8, 0], [9, 5]],
     "hazard_positions": [[1, 0], [2, 4], [8, 5], [9, 4]],
     "gem_reward": 10.0,
+    "coin_reward": 6.0,
     "hazard_penalty": -12.0,
     "enemy_penalty": -15.0,
     "step_penalty": -0.05,
@@ -61,7 +64,7 @@ _POSITIVE_INTS = {
 }
 _NONNEGATIVE_INTS = {"number_of_rewards", "number_of_hazards", "number_of_enemies", "seed"}
 _NUMBERS = {
-    "gem_reward", "hazard_penalty", "enemy_penalty", "step_penalty",
+    "gem_reward", "coin_reward", "hazard_penalty", "enemy_penalty", "step_penalty",
     "learning_rate", "discount_factor", "epsilon_start", "epsilon_min", "epsilon_decay",
     "progress_reward",
 }
@@ -93,7 +96,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
             config[key] = float(value)
         elif key in {"hazards_moving", "hazard_blocks_agent"} and isinstance(value, bool):
             config[key] = value
-        elif key in {"reward_positions", "hazard_positions", "wall_positions", "enemy_positions"} and isinstance(value, list):
+        elif key in {"reward_positions", "hazard_positions", "wall_positions", "enemy_positions", "coin_positions"} and isinstance(value, list):
             valid = []
             for position in value:
                 if (isinstance(position, list) and len(position) == 2 and
@@ -102,6 +105,15 @@ def load_config(path: str | Path) -> dict[str, Any]:
                 else:
                     print(f"Config warning: ignoring invalid position in '{key}'")
             config[key] = valid
+        elif key == "monster_regions" and isinstance(value, list):
+            regions = []
+            for region in value:
+                if (isinstance(region, list) and len(region) == 4 and all(isinstance(v, int) for v in region)
+                        and region[2] > 0 and region[3] > 0):
+                    regions.append(region)
+                else:
+                    print("Config warning: ignoring invalid monster region")
+            config[key] = regions
         elif key == "start_position" and (value is None or
                 (isinstance(value, list) and len(value) == 2 and all(isinstance(v, int) for v in value))):
             config[key] = value
@@ -125,7 +137,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
     reserved_start = (tuple(config["start_position"]) if config["start_position"] is not None
                       else (config["grid_width"] // 2, config["grid_height"] // 2))
     occupied: set[tuple[int, int]] = set()
-    for key in ("wall_positions", "reward_positions", "hazard_positions", "enemy_positions"):
+    for key in ("wall_positions", "reward_positions", "hazard_positions", "enemy_positions", "coin_positions"):
         checked = []
         for position in config[key]:
             point = (position[0], position[1])
@@ -141,6 +153,16 @@ def load_config(path: str | Path) -> dict[str, Any]:
     config["number_of_hazards"] = len(config["hazard_positions"])
     if config["enemy_positions"]:
         config["number_of_enemies"] = len(config["enemy_positions"])
+    if len(config["coin_positions"]) > 7:
+        print("Config warning: only the first 7 coin positions are used")
+        config["coin_positions"] = config["coin_positions"][:7]
+    valid_regions = []
+    for x, y, width, height in config["monster_regions"]:
+        if x >= 0 and y >= 0 and x + width <= config["grid_width"] and y + height <= config["grid_height"]:
+            valid_regions.append([x, y, width, height])
+        else:
+            print(f"Config warning: ignoring out-of-grid monster region {[x, y, width, height]}")
+    config["monster_regions"] = valid_regions
     capacity = config["grid_width"] * config["grid_height"] - 1
     requested = config["number_of_rewards"] + config["number_of_hazards"] + config["number_of_enemies"]
     if requested > capacity:

@@ -11,6 +11,8 @@ from .ui import GameUI, PANEL_WIDTH
 class QuestUI(GameUI):
     def __init__(self, config: dict):
         super().__init__(config)
+        self.height = max(self.height, 1250)
+        self.screen = pygame.display.set_mode((self.arena_width + PANEL_WIDTH, self.height))
         pygame.display.set_caption("AI勇者のキャッスルクエスト — 安全な道を学ぼう")
 
     def draw(self, game, paused: bool, speed: float) -> None:
@@ -59,7 +61,7 @@ class QuestUI(GameUI):
         y = self.arena_height + 22
         self.screen.blit(self.font.render("勇者は危険な道を学び、お城を目指します", True, theme["text"]), (24, y))
         y += 36
-        legend = [(theme["agent"], "AI勇者"), (theme["reward"], "お城"),
+        legend = [(theme["agent"], "AI勇者"), (theme["reward"], "お城・コイン"),
                   (theme["hazard"], "危険な道"), (theme["enemy"], "モンスター"), ((112, 126, 159), "壁")]
         x = 24
         for color, label in legend:
@@ -72,10 +74,11 @@ class QuestUI(GameUI):
         visible_enemies = sum(game.agent_can_see(enemy.position) for enemy in game.enemies)
         visible_hazards = sum(game.agent_can_see(hazard.position) for hazard in game.hazards)
         remaining = game._goal_distances.get(game.agent_position, game.start_distance)
+        destination = f"城まで残り {remaining} マス" if game.goal_is_known() else "目的地はまだ未発見"
         cards = [
-            ("現在の旅", [f"城まで残り {remaining} マス", f"現在 {game.steps} 歩目", game.last_outcome]),
+            ("現在の旅", [destination, f"現在 {game.steps} 歩目", game.last_outcome]),
             ("勇者に見えているもの", [f"モンスター {visible_enemies} 体", f"危険な道 {visible_hazards} 個", "青い範囲が勇者の視野"]),
-            ("報酬ルール", [f"城に到着  +{game.config['gem_reward']:.0f}", f"危険な道  {game.config['hazard_penalty']:.0f}", f"捕まる  {game.config['enemy_penalty']:.0f}"]),
+            ("報酬ルール", [f"お城  +{game.config['gem_reward']:.0f}　コイン +{game.config['coin_reward']:.0f}", f"危険な道  {game.config['hazard_penalty']:.0f}", f"捕まる  {game.config['enemy_penalty']:.0f}"]),
         ]
         for index, (title, lines) in enumerate(cards):
             rect = pygame.Rect(24 + index * (card_width + gap), card_y, card_width, 132)
@@ -95,24 +98,42 @@ class QuestUI(GameUI):
         left, width = x + 22, PANEL_WIDTH - 44
 
         self.screen.blit(self.title.render("AI勇者のキャッスルクエスト", True, theme["text"]), (left, 18))
-        status = "準備中" if paused else ("冒険を学習中" if game.mode == "training" else "学んだ道で冒険中")
+        if not game.training_started:
+            status = "コイン配置・設定中"
+        elif game.mode == "training" and game.episode < game.TRAINING_EPISODES:
+            status = "100回の冒険を学習中"
+        else:
+            status = "学習済み勇者を再生中"
         self.screen.blit(self.font.render(f"●  {status}", True, theme["agent"]), (left, 55))
-        self._button("pause", "冒険を始める" if paused else "一時停止", left, 88, 126, theme, primary=True)
-        self._button("reset", "学習をリセット", left + 136, 88, 145, theme)
-        self._button("mode", "おためし" if game.mode == "training" else "学習", left + 291, 88, 95, theme)
+        role = "設定者モード" if game.access_mode == "configurer" else "体験者モード"
+        self._button("role", role, left, 88, 115, theme)
+        start_label = "学習を開始" if not game.training_started else ("再生を開始" if paused else "一時停止")
+        self._button("pause", start_label, left + 125, 88, 130, theme, primary=True)
+        self._button("reset", "設定をやり直す", left + 265, 88, 121, theme)
+        if game.access_mode == "configurer" and not game.training_started:
+            self._button("collect_coins", "コイン回収", left, 128, 184, theme)
+            self._button("revive_coins", "コイン復活", left + 202, 128, 184, theme)
 
-        y = 139
-        self.screen.blit(self.small.render(game.last_outcome, True, theme["text"]), (left, y))
+        y = 178
+        setup_note = ("盤面クリックでコインを配置・削除（最大7枚）" if not game.training_started
+                      else f"コイン位置は固定　／　1回 {game.fixed_step_limit} 歩")
+        self.screen.blit(self.small.render(setup_note, True, theme["text"]), (left, y))
+        y += 25
+        coin_state = "復活中" if game.coins_enabled else "回収済み"
+        self.screen.blit(self.small.render(f"コイン {len(game.coin_positions)} / {game.MAX_COINS} 枚（{coin_state}）　{game.last_outcome}", True, theme["text"]), (left, y))
         y += 27
-        self.screen.blit(self.small.render("お城までの進み具合", True, theme["text"]), (left, y))
-        progress_rect = pygame.Rect(left, y + 23, width, 14)
-        pygame.draw.rect(self.screen, (205, 199, 186), progress_rect, border_radius=7)
-        filled = progress_rect.copy()
-        filled.width = max(4, int(progress_rect.width * game.journey_progress()))
-        pygame.draw.rect(self.screen, theme["reward"], filled, border_radius=7)
+        if game.goal_is_known():
+            self.screen.blit(self.small.render("お城までの進み具合", True, theme["text"]), (left, y))
+            progress_rect = pygame.Rect(left, y + 23, width, 14)
+            pygame.draw.rect(self.screen, (205, 199, 186), progress_rect, border_radius=7)
+            filled = progress_rect.copy()
+            filled.width = max(4, int(progress_rect.width * game.journey_progress()))
+            pygame.draw.rect(self.screen, theme["reward"], filled, border_radius=7)
+        else:
+            self.screen.blit(self.small.render("目的地を探索中：城の位置はまだ見えていません", True, theme["text"]), (left, y + 8))
         y += 54
 
-        cards = [("エピソード", str(game.episode)), ("今回の歩数", str(game.steps)),
+        cards = [("エピソード", f"{game.episode} / 100"), ("今回の歩数", f"{game.steps} / {game.fixed_step_limit}"),
                  ("お城に到着", f"{game.successes}回"), ("モンスター敗北", f"{game.defeats}回"),
                  ("最高記録", f"{game.best_steps}歩" if game.best_steps else "--"),
                  ("探索率", f"{game.agent.epsilon:.3f}")]
@@ -126,12 +147,31 @@ class QuestUI(GameUI):
 
         self.screen.blit(self.font.render("冒険の設定", True, theme["text"]), (left, y))
         y += 33
-        y = self._parameter("speed_down", "speed_up", "勇者の速さ", f"毎秒 {speed:g} 歩", left, y, width, theme)
-        y = self._parameter("enemy_slower", "enemy_faster", "モンスターの速さ",
-                            f"{game.config['enemy_speed']} 歩ごと", left, y, width, theme)
-        sight = f"視野　勇者 {game.config['agent_vision_range']}マス　／　モンスター {game.config['monster_vision_range']}マス"
-        self.screen.blit(self.small.render(sight, True, theme["text"]), (left, y - 4))
-        y += 24
+        y = self._parameter("speed_down", "speed_up", "再生・学習の速さ", f"毎秒 {speed:g} 歩", left, y, width, theme)
+        if game.access_mode == "configurer" and not game.training_started:
+            y = self._parameter("enemy_slower", "enemy_faster", "モンスターの速さ",
+                                f"{game.config['enemy_speed']} 歩ごと", left, y, width, theme)
+            y = self._parameter("hero_vision_down", "hero_vision_up", "勇者の視野",
+                                f"{game.config['agent_vision_range']} マス", left, y, width, theme)
+            y = self._parameter("monster_vision_down", "monster_vision_up", "モンスターの視野",
+                                f"{game.config['monster_vision_range']} マス", left, y, width, theme)
+            self.screen.blit(self.font.render("報酬ルール", True, theme["text"]), (left, y))
+            y += 33
+            y = self._parameter("castle_reward_down", "castle_reward_up", "城の報酬",
+                                f"{game.config['gem_reward']:.0f}", left, y, width, theme)
+            y = self._parameter("coin_reward_down", "coin_reward_up", "コインの報酬",
+                                f"{game.config['coin_reward']:.0f}", left, y, width, theme)
+            y = self._parameter("hazard_penalty_down", "hazard_penalty_up", "危険マスの報酬",
+                                f"{game.config['hazard_penalty']:.0f}", left, y, width, theme)
+            y = self._parameter("enemy_penalty_down", "enemy_penalty_up", "捕獲時の報酬",
+                                f"{game.config['enemy_penalty']:.0f}", left, y, width, theme)
+        else:
+            message = ("体験者モード：パラメータは固定です" if game.access_mode == "player"
+                       else "学習開始後はパラメータを固定します")
+            self.screen.blit(self.small.render(message, True, theme["text"]), (left, y))
+            y += 24
+            self.screen.blit(self.small.render(f"勇者の視野 {game.config['agent_vision_range']}マス　モンスター {game.config['monster_vision_range']}マス", True, theme["text"]), (left, y))
+            y += 24
 
         self.screen.blit(self.font.render("学習の記録", True, theme["text"]), (left, y))
         y += 29

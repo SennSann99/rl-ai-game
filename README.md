@@ -7,10 +7,15 @@ A lightweight event demo where a blue AI agent learns to collect gold gems and a
 Requires Python 3.10 or newer. From this directory:
 
 ```bash
+cd /Users/tomford/dev/rl-ai-game
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python quest_main.py
+```
+
+If `.venv` does not exist yet, create it after changing into the project directory:
+
+```bash
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python main.py
 ```
 
 The game opens paused; click **START** when the audience is ready. The agent initially explores randomly (high epsilon), then increasingly chooses actions that earned higher rewards. After `training_episodes`, the game switches to demo mode and pauses so the presenter stays in control.
@@ -61,6 +66,33 @@ Run `python advanced_main.py` to start the separate advanced version configured 
 
 ## Castle quest version
 
-Run `python quest_main.py` for a separate fixed-start journey configured by `config_quest.json`. The AI hero must cross a maze of dangerous road cells and sight-based monsters to reach one castle. Reaching the castle or being caught ends the episode. The final castle reward is supplemented by a small configurable `progress_reward` so the sparse-reward task can learn during a live demonstration.
+Run `python quest_main.py` for a separate fixed-start journey configured by `config_quest.json`. The AI hero starts from the same cell every episode and must reach one castle while avoiding walls, dangerous road cells, and sight-based monsters. Reaching the castle, being caught, or using all permitted steps ends the episode.
 
-The quest dashboard uses the lower-left area to show the remaining route distance, currently visible threats, and reward rules.
+### Fixed learning rules
+
+The quest fixes its training run to **100 episodes**. Every training and playback episode has a fixed **100-step** limit. This limit is enforced by the game even if `episode_length` or `training_episodes` are edited in the JSON file.
+
+### Coins: fixed intermediate rewards
+
+`config_quest.json` defines up to seven fixed `coin_positions`. Coins respawn at their configured locations at the start of every episode. During setup, **設定者モード** provides **コイン回収** to temporarily remove the configured set and **コイン復活** to restore it. Coin locations cannot be added, removed, or moved after learning starts.
+
+Coins provide a small positive reward once per episode, while the castle remains the only final objective and provides the largest reward. Coins are intentionally excluded from the agent's observation state: the agent cannot see or directly target them, and must discover useful routes through its normal epsilon-greedy exploration and learned policy.
+
+### Monster A / Monster B ranges
+
+`monster_regions` defines a fixed `[x, y, width, height]` movement range for each monster in `enemy_positions`. Monster A uses the first region and Monster B the second. They may patrol and chase within their own range but never leave it.
+
+### Two access modes
+
+| Mode | Visibility and controls |
+| --- | --- |
+| 設定者モード | Full map is visible before and during training. Before learning starts, the user can collect/revive the fixed coins and adjust movement, vision, and reward rules. |
+| 体験者モード | Only the hero's explored map is visible. Coins, map layout, and reward rules are fixed; the display speed remains adjustable. |
+
+Use the top-left mode button before training starts to switch modes. `Space` or **学習を開始** begins the fixed 100-episode run. After learning begins, all coin and environment settings lock.
+
+### Quest-specific settings
+
+`config_quest.json` defines the fixed map, start, castle, hazards, coin positions, monster spawn cells and ranges, rewards, and initial view distances. The adjustable reward rules are `gem_reward`, `coin_reward`, `hazard_penalty`, and `enemy_penalty`.
+
+The dashboard uses the lower-left area for the remaining route distance, visible threats, and reward rules.
