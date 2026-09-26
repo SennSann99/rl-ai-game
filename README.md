@@ -70,7 +70,7 @@ Run `python quest_main.py` for a separate fixed-start journey configured by `con
 
 ### Fixed learning rules
 
-The quest fixes its training run to **100 episodes**. Every training and playback episode has a fixed **100-step** limit. This limit is enforced by the game even if `episode_length` or `training_episodes` are edited in the JSON file.
+The quest fixes training to **200 episodes**, with a **200-step** limit for each training or playback episode. These limits override the corresponding JSON settings. The hero observes every monster's exact position, even outside its vision or behind walls; the player's fog-of-war is unchanged.
 
 ### Coins: fixed intermediate rewards
 
@@ -80,7 +80,7 @@ Coins provide a small positive reward once per episode, while the castle remains
 
 ### Monster A / Monster B ranges
 
-`monster_regions` defines a fixed `[x, y, width, height]` movement range for each monster in `enemy_positions`. Monster A uses the first region and Monster B the second. They may patrol and chase within their own range but never leave it.
+Each monster moves randomly within four cells of its initial position (horizontal plus vertical distance), avoiding walls and map boundaries. Monsters do not chase the hero. The quest ignores `monster_regions` for movement.
 
 ### Two access modes
 
@@ -89,7 +89,7 @@ Coins provide a small positive reward once per episode, while the castle remains
 | 設定者モード | Full map is visible before and during training. Before learning starts, the user can collect/revive the fixed coins and adjust movement, vision, and reward rules. |
 | 体験者モード | Only the hero's explored map is visible. Coins, map layout, and reward rules are fixed; the display speed remains adjustable. |
 
-Use the top-left mode button before training starts to switch modes. `Space` or **学習を開始** begins the fixed 100-episode run. After learning begins, all coin and environment settings lock.
+Use the top-left mode button before training starts to switch modes. `Space` or **学習を開始** begins the fixed 200-episode run. After learning begins, all coin and environment settings lock.
 
 ### Quest-specific settings
 

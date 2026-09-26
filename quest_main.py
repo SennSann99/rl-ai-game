@@ -72,6 +72,8 @@ def main() -> int:
                         elif action == "castle_reward_up": game.config["gem_reward"] += 5
                         elif action == "coin_reward_down": game.config["coin_reward"] = max(0, game.config["coin_reward"] - 1)
                         elif action == "coin_reward_up": game.config["coin_reward"] += 1
+                        elif action == "coin_respawn_down": game.config["coin_respawn_steps"] = max(1, game.config["coin_respawn_steps"] - 1)
+                        elif action == "coin_respawn_up": game.config["coin_respawn_steps"] += 1
                         elif action == "hazard_penalty_down": game.config["hazard_penalty"] -= 1
                         elif action == "hazard_penalty_up": game.config["hazard_penalty"] = min(0, game.config["hazard_penalty"] + 1)
                         elif action == "enemy_penalty_down": game.config["enemy_penalty"] -= 5

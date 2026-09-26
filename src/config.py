@@ -27,6 +27,7 @@ DEFAULTS: dict[str, Any] = {
     "hazard_positions": [[1, 0], [2, 4], [8, 5], [9, 4]],
     "gem_reward": 10.0,
     "coin_reward": 6.0,
+    "coin_respawn_steps": 4,
     "hazard_penalty": -12.0,
     "enemy_penalty": -15.0,
     "step_penalty": -0.05,
@@ -58,6 +59,7 @@ DEFAULTS: dict[str, Any] = {
 }
 
 _POSITIVE_INTS = {
+    "coin_respawn_steps",
     "grid_width", "grid_height", "cell_size", "agent_speed", "enemy_speed",
     "episode_length", "training_episodes", "fps", "vision_range",
     "agent_vision_range", "monster_vision_range",

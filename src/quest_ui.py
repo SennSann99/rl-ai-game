@@ -71,13 +71,13 @@ class QuestUI(GameUI):
         game = self.current_game
         card_y, gap = y + 45, 12
         card_width = (self.arena_width - 48 - gap * 2) // 3
-        visible_enemies = sum(game.agent_can_see(enemy.position) for enemy in game.enemies)
+        visible_enemies = len(game.enemies)
         visible_hazards = sum(game.agent_can_see(hazard.position) for hazard in game.hazards)
         remaining = game._goal_distances.get(game.agent_position, game.start_distance)
         destination = f"城まで残り {remaining} マス" if game.goal_is_known() else "目的地はまだ未発見"
         cards = [
             ("現在の旅", [destination, f"現在 {game.steps} 歩目", game.last_outcome]),
-            ("勇者に見えているもの", [f"モンスター {visible_enemies} 体", f"危険な道 {visible_hazards} 個", "青い範囲が勇者の視野"]),
+            ("勇者が把握しているもの", [f"モンスター全{visible_enemies}体の位置", f"危険な道 {visible_hazards} 個", "敵の位置は視野外でも把握"]),
             ("報酬ルール", [f"お城  +{game.config['gem_reward']:.0f}　コイン +{game.config['coin_reward']:.0f}", f"危険な道  {game.config['hazard_penalty']:.0f}", f"捕まる  {game.config['enemy_penalty']:.0f}"]),
         ]
         for index, (title, lines) in enumerate(cards):
@@ -101,7 +101,7 @@ class QuestUI(GameUI):
         if not game.training_started:
             status = "コイン配置・設定中"
         elif game.mode == "training" and game.episode < game.TRAINING_EPISODES:
-            status = "100回の冒険を学習中"
+            status = f"{game.TRAINING_EPISODES}回の冒険を学習中"
         else:
             status = "学習済み勇者を再生中"
         self.screen.blit(self.font.render(f"●  {status}", True, theme["agent"]), (left, 55))
@@ -133,7 +133,7 @@ class QuestUI(GameUI):
             self.screen.blit(self.small.render("目的地を探索中：城の位置はまだ見えていません", True, theme["text"]), (left, y + 8))
         y += 54
 
-        cards = [("エピソード", f"{game.episode} / 100"), ("今回の歩数", f"{game.steps} / {game.fixed_step_limit}"),
+        cards = [("エピソード", f"{game.episode} / {game.TRAINING_EPISODES}"), ("今回の歩数", f"{game.steps} / {game.fixed_step_limit}"),
                  ("お城に到着", f"{game.successes}回"), ("モンスター敗北", f"{game.defeats}回"),
                  ("最高記録", f"{game.best_steps}歩" if game.best_steps else "--"),
                  ("探索率", f"{game.agent.epsilon:.3f}")]
@@ -155,6 +155,8 @@ class QuestUI(GameUI):
                                 f"{game.config['agent_vision_range']} マス", left, y, width, theme)
             y = self._parameter("monster_vision_down", "monster_vision_up", "モンスターの視野",
                                 f"{game.config['monster_vision_range']} マス", left, y, width, theme)
+            y = self._parameter("coin_respawn_down", "coin_respawn_up", "コイン復活まで",
+                                f"{game.config['coin_respawn_steps']} 歩", left, y, width, theme)
             self.screen.blit(self.font.render("報酬ルール", True, theme["text"]), (left, y))
             y += 33
             y = self._parameter("castle_reward_down", "castle_reward_up", "城の報酬",

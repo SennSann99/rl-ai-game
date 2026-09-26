@@ -11,11 +11,10 @@ from .objects import Enemy, Gem, Hazard, Position
 class CastleQuest(AdvancedTreasureDash):
     display_title = "AI勇者のキャッスルクエスト"
     is_quest = True
-    TRAINING_EPISODES = 100
-    FIXED_STEP_LIMIT = 100
+    TRAINING_EPISODES = 200
+    FIXED_STEP_LIMIT = 200
     MAX_COINS = 7
-    MONSTER_ROAM_RADIUS = 5
-    COIN_RESPAWN_STEPS = 4
+    MONSTER_ROAM_RADIUS = 4
 
     def __init__(self, config: dict):
         self.successes = 0
@@ -72,7 +71,7 @@ class CastleQuest(AdvancedTreasureDash):
         self.recent_scores.clear(); self.score_history.clear()
         self.successes = self.defeats = 0
         self.best_steps = None
-        self.last_outcome = "100回の学習を開始しました"
+        self.last_outcome = f"{self.TRAINING_EPISODES}回の学習を開始しました"
         self.mode = "training"
         self.reset_episode()
 
@@ -130,13 +129,13 @@ class CastleQuest(AdvancedTreasureDash):
 
     def state(self) -> tuple:
         hazards = [obj for obj in self.hazards if self.agent_can_see(obj.position)]
-        enemies = [obj for obj in self.enemies if self.agent_can_see(obj.position)]
+        enemy_positions = tuple(enemy.position for enemy in self.enemies)
         blocked = tuple(self._clamp((self.agent_position[0] + dx, self.agent_position[1] + dy)) in self.walls
                         or self._clamp((self.agent_position[0] + dx, self.agent_position[1] + dy)) == self.agent_position
                         for dx, dy in self.agent.ACTIONS)
         dx, dy = self.goal_position[0] - self.agent_position[0], self.goal_position[1] - self.agent_position[1]
         goal = ((dx > 0) - (dx < 0), (dy > 0) - (dy < 0), min(self._goal_distances.get(self.agent_position, 20), 20))
-        return (self.agent_position, blocked, goal, self._nearest_signature(hazards), self._nearest_signature(enemies))
+        return (self.agent_position, blocked, goal, self._nearest_signature(hazards), enemy_positions)
 
     def tick(self) -> bool:
         old_state = self.state()
@@ -160,7 +159,7 @@ class CastleQuest(AdvancedTreasureDash):
         reward = self.config["step_penalty"] + self.config["progress_reward"] * (old_distance - new_distance)
         for coin in [coin for coin in self.coins if coin.position == self.agent_position]:
             self.coins.remove(coin); reward += self.config["coin_reward"]
-            self.coin_respawn_at[coin.position] = self.steps + self.COIN_RESPAWN_STEPS
+            self.coin_respawn_at[coin.position] = self.steps + self.config["coin_respawn_steps"]
         if any(h.position == self.agent_position for h in self.hazards): reward += self.config["hazard_penalty"]
         reached = self.agent_position == self.goal_position
         caught = any(enemy.position == self.agent_position for enemy in self.enemies)
@@ -174,7 +173,7 @@ class CastleQuest(AdvancedTreasureDash):
                 self.successes += 1; self.best_steps = self.steps if self.best_steps is None else min(self.best_steps, self.steps); self.last_outcome = f"お城に到着！ {self.steps}歩"
             elif caught:
                 self.defeats += 1; self.last_outcome = "モンスターにつかまりました"
-            else: self.last_outcome = "100歩で時間切れです"
+            else: self.last_outcome = f"{self.fixed_step_limit}歩で時間切れです"
             self._finish_episode()
         return done
 
