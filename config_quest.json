@@ -32,8 +32,8 @@
   "learning_rate": 0.25,
   "discount_factor": 0.96,
   "epsilon_start": 1.0,
-  "epsilon_min": 0.04,
-  "epsilon_decay": 0.992,
+  "epsilon_min": 0.02,
+  "epsilon_decay": 0.97,
   "fps": 60,
   "seed": 21,
   "theme": {
