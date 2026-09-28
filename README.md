@@ -1,104 +1,60 @@
 # AI Treasure Dash
 
-A lightweight event demo where a blue AI agent learns to collect gold gems and avoid red hazards and purple enemies. It uses tabular Q-learning: good outcomes increase the value of the action that led to them, while penalties reduce it. No GPU, network service, or machine-learning framework is required.
+AIが試行錯誤しながら、宝石集めや城への道順を学ぶ強化学習（Q学習）のデモです。GPUや外部サービスは不要です。
 
-## Install and run
+## 起動方法
 
-Requires Python 3.10 or newer. From this directory:
+Python 3.13を推奨します（3.14ではpygameのインストールが失敗する場合があります）。ターミナルで、このREADMEがあるフォルダーを開いて実行してください。
 
-```bash
-cd /Users/tomford/dev/rl-ai-game
-./.venv/bin/python -m pip install -r requirements.txt
-./.venv/bin/python quest_main.py
-```
+初回（macOS / Linux）：
 
-If `.venv` does not exist yet, create it after changing into the project directory:
+`python3.13` がない場合は先にインストールしてください。macOSでHomebrewを使う場合は `brew install python@3.13` です。
 
 ```bash
-python3 -m venv .venv
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python quest_main.py
 ```
 
-The game opens paused; click **START** when the audience is ready. The agent initially explores randomly (high epsilon), then increasingly chooses actions that earned higher rewards. After `training_episodes`, the game switches to demo mode and pauses so the presenter stays in control.
+2回目以降：
 
-The window can be resized by dragging its edges or corners. The complete view scales proportionally, and controls remain clickable at every size. The initial window fits the desktop.
+```bash
+source .venv/bin/activate
+python quest_main.py
+```
 
-## Controls
+Windows（PowerShell）では、初回に `py -3.13 -m venv .venv` で仮想環境を作成し、有効化コマンドを `.venv\Scripts\Activate.ps1` に置き換えてください。
 
-| Key | Action |
+**`.venv/bin/python` が見つからない場合：** 仮想環境が未作成か、別のフォルダーにいます。READMEがあるフォルダーで、初回の手順を上から実行してください。
+
+## ゲームの種類
+
+仮想環境を有効にした状態で、遊びたい版を起動します。設定ファイルは起動前に編集してください。
+
+| 種類 | 起動コマンド | 設定ファイル |
+| --- | --- | --- |
+| 城への冒険 | `python quest_main.py` | `config_quest.json` |
+| 宝石集め | `python main.py` | `config.json` |
+| 視界・壁ありの宝石集め | `python advanced_main.py` | `config_advanced.json` |
+
+## 城への冒険の遊び方
+
+1. 開始前に、左上のボタンでモードを選びます。**設定者モード**は全体マップを表示し、敵の有無や報酬などを変更できます。**体験者モード**は探索済みの範囲だけを表示します。
+2. **学習を開始**または `Space` を押します。AIは毎回同じ場所から出発し、城を目指します。
+3. 学習は200回、各回は最大200ステップです。開始後は環境設定が固定され、表示速度は調整できます。
+
+コインは各回に復活する中間報酬です。AIはコインの位置を直接観測せず、探索で道順を学びます。敵は初期位置の周辺をランダムに移動します。
+
+## 基本操作
+
+画面のボタンでも操作できます。ウィンドウの大きさは変更できます。
+
+| キー | 操作 |
 | --- | --- |
-| `G` | Add a gem |
-| `H` | Add a hazard |
-| `C` | Toggle enemies between random movement and chasing |
-| `M` | Switch between training and demo mode |
-| `R` | Clear the Q-table and restart training |
-| `Space` | Pause/resume |
-| `[` / `]` | Decrease/increase simulation speed |
-| `Esc` | Quit |
+| `Space` | 開始・一時停止・再開 |
+| `[` / `]` | 速度を下げる・上げる |
+| `R` | 学習をリセット |
+| `Esc` | 終了 |
 
-## Configure the environment
-
-Edit `config.json` before starting the game. It controls the grid and cell size; fixed object positions; rewards and penalties; update speeds; moving or blocking hazards; enemy behavior; episode/training length; Q-learning values; and colors. Invalid or missing values produce a warning and use safe defaults.
-
-Useful presentation changes:
-
-- Set `reward_positions` and `hazard_positions` to grid coordinates such as `[2, 1]`. These placements remain fixed across episodes, and collected gems return to their configured cells.
-- Set `hazards_moving` to `true` for a harder environment.
-- Set `hazard_blocks_agent` to `true` to turn red cells into walls instead of traversable penalty zones.
-- Set `enemy_behavior` to `"chase"` for pursuing enemies.
-- Change `agent_speed` to set the initial number of learning steps per second. It can also be adjusted live with the panel controls.
-- Lower `episode_length` or `training_episodes` for a shorter demo.
-
-`enemy_speed` is the number of agent steps between enemy/hazard moves, so a smaller value makes them move faster.
-
-The on-screen panel also provides clickable controls for start/pause, reset, training/demo mode, simulation speed, gem and hazard counts, enemy speed, and enemy behavior.
-
-The learning-progress chart shows raw episode scores in gray and a five-episode moving average in gold. A rising gold line indicates that the policy is improving.
-
-## Reinforcement learning in plain language
-
-The AI is not given a route. It sees its position and the direction and distance to the nearest gem, hazard, and enemy. It tries actions, receives points or penalties, and stores which actions worked in a Q-table. Epsilon is the chance that it explores a random action; that chance falls as training progresses. Demo mode sets exploration aside and shows the best policy learned so far.
-
-## Limitations
-
-The Q-table is kept in memory and is not saved between runs. Because objects can move and respawn, scores naturally vary, and a changed configuration should be followed by resetting training. This prototype favors visible, fast learning over sophisticated planning.
-
-## Advanced limited-vision version
-
-Run `python advanced_main.py` to start the separate advanced version configured by `config_advanced.json`. Both the AI and monsters see up to three grid cells away, walls block movement and line of sight, and alerted monsters use shortest-path search to pursue the AI's last known position. Blue and purple shading visualizes each side's field of view; an outlined monster with `!` has detected the AI.
-
-## Castle quest version
-
-Run `python quest_main.py` for a separate fixed-start journey configured by `config_quest.json`. The AI hero starts from the same cell every episode and must reach one castle while avoiding walls, dangerous road cells, and sight-based monsters. Reaching the castle, being caught, or using all permitted steps ends the episode.
-
-### Fixed learning rules
-
-The quest fixes training to **200 episodes**, with a **200-step** limit for each training or playback episode. These limits override the corresponding JSON settings. The hero observes every monster's exact position, even outside its vision or behind walls; the player's fog-of-war is unchanged.
-
-### Coins: fixed intermediate rewards
-
-`config_quest.json` defines up to seven fixed `coin_positions`. Coins respawn at their configured locations at the start of every episode. During setup, **設定者モード** provides **コイン回収** to temporarily remove the configured set and **コイン復活** to restore it. Coin locations cannot be added, removed, or moved after learning starts.
-
-Coins provide a small positive reward once per episode, while the castle remains the only final objective and provides the largest reward. Coins are intentionally excluded from the agent's observation state: the agent cannot see or directly target them, and must discover useful routes through its normal epsilon-greedy exploration and learned policy.
-
-### Monster A / Monster B ranges
-
-Each monster moves randomly within four cells of its initial position (horizontal plus vertical distance), avoiding walls and map boundaries. Monsters do not chase the hero. The quest ignores `monster_regions` for movement.
-
-### Two access modes
-
-| Mode | Visibility and controls |
-| --- | --- |
-| 設定者モード | Full map is visible before and during training. Before learning starts, the user can collect/revive the fixed coins and adjust movement, vision, and reward rules. |
-| 体験者モード | Only the hero's explored map is visible. Coins, map layout, and reward rules are fixed; the display speed remains adjustable. |
-
-Use the top-left mode button before training starts to switch modes. `Space` or **学習を開始** begins the fixed 200-episode run. After learning begins, all coin and environment settings lock.
-
-### Quest-specific settings
-
-`config_quest.json` defines the fixed map, start, castle, hazards, coin positions, monster spawn cells and ranges, rewards, and initial view distances. The adjustable reward rules are `gem_reward`, `coin_reward`, `hazard_penalty`, and `enemy_penalty`.
-
-The dashboard uses the lower-left area for the remaining route distance, visible threats, and reward rules.
-
-### Optional enemies
-
-Before learning starts, use **敵あり／敵なし** under **冒険の設定** in 設定者モード. The selection is fixed during training and playback, and retained when returning to setup. Restarting the app defaults to enemies enabled. Enemy-specific controls are hidden when enemies are disabled. The enemy display-range control only changes the purple overlay; quest monsters always roam randomly and do not use vision to chase.
+学習結果は終了すると失われます。得点にはばらつきがあるため、学習の進み具合はグラフの傾向で確認してください。
